@@ -1,7 +1,7 @@
 
 
 ## This will need to be changed to your local settings
-setwd("D:/git_R/Mesonet_10_Day")
+setwd("D:/git_R/Daily_Mesonet_Report")
 
 unlink("reports", recursive = TRUE, force = FALSE)
 Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/pandoc")  ## Fixed pandoc errors

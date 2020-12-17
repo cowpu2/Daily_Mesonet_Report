@@ -3,7 +3,7 @@ title: "Madill Mesonet - 10 Day"
 author: "CowPuTwo"
 email: cowpu2@gmail.com
 ---
-## ============ Sends Mesonet 10-day files as attachments ===============
+## ============ Sends Mesonet Daily Report as attachments ===============
 ##
 ## CodeMonkey:  Mike Proctor
 ## ======================================================================
