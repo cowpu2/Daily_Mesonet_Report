@@ -1,0 +1,237 @@
+---
+title: "Madill Mesonet - 10 Day"
+author: "Mike Proctor"
+email: "cowpu2@gmail.com"
+output: 
+  html_document:
+    fig_caption: yes
+    theme: cerulean
+    code_folding: hide
+    df_print: paged
+---
+
+```{r Libraries, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(magrittr)
+library(rprojroot)
+library("tidylog", warn.conflicts = FALSE)
+library(blastula)
+library(okmesonet)
+
+# 2017-08-06 18:49:19 ------------------------------mdp
+# 2017-12-09 15:58:58 ------------------------------mdp
+# 2018-01-02 20:37:39 ------------------------------mdp
+# 2019-08-11 18:03:09 ------------------------------mdp
+# 2019-08-13 21:43:01 ------------------------------mdp
+# 2020-08-18 21:05:48 ------------------------------mdp
+# 2020-08-19 15:31:04 ------------------------------mdp
+# 2020-09-19 10:03:54 ------------------------------mdp
+# 
+
+```
+
+---
+output: blastula::blastula_email
+---
+```{r Run Date, echo=FALSE, message=TRUE, warning=TRUE}
+
+
+ now()
+```
+
+
+```{r Get data, echo=FALSE, message=FALSE, warning=FALSE}
+
+yesterday <- duration("10 days")  ## Set a period of one day
+today <- duration("1 day")        ## One day for daily pressure
+
+bgin <- now()-yesterday  ##      Bgin is one day prior to right now
+
+madill <- okmts(begintime=bgin,   ##   Retrieve specific fields
+                endtime=now(),
+                station = "MADI",
+                missingNA = TRUE,
+                localtime = TRUE,
+                variables = c("RELH",
+                              "TAIR",
+                              "WSPD",
+                              "WDIR",
+                              "WMAX",
+                              "PRES",
+                              "RAIN",
+                              "TS05"
+                              ))
+
+madill <- mutate(madill, TEMP = TAIR * 1.8 + 32, PPT = RAIN/25.4, SOIL_5cm = (TS05 * 1.8 + 32))## Convert to fahrenheit and inches
+
+```
+# Plots...............
+
+```{r Temperature, echo=FALSE, message=FALSE, warning=FALSE}
+
+##  ======================== Plot TEMP values============================
+##  Get min values
+min.temp <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day) %>%
+  top_n(-1, TEMP)
+
+temp.floor <- min.temp %>% distinct(TEMP, .keep_all = TRUE)
+
+## Get maxvalues
+max.temp <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day) %>%
+  top_n(1, TEMP)
+
+temp.ceiling <- max.temp %>% distinct(TEMP, .keep_all = TRUE)
+
+Temp_vals <- 
+ggplot(madill, aes(TIME, TEMP)) +
+  geom_line(color = "red", size = 0.5)+
+  scale_x_datetime(date_breaks = "1 day", date_labels = "%b %d") +
+  geom_text(data = temp.floor, aes(label = round(TEMP,0)), hjust = 1.5, color = "red") +
+  geom_text(data = temp.ceiling, aes(label = round(TEMP,0)), hjust = 1.5, color = "red") +
+  ggtitle(paste0("Temp values for past 10 days @ Madill - ", today()))
+  ggsave("plots/temp_vals.pdf", width = 10, height = 8)
+print(Temp_vals)
+
+```
+
+```{r Relative Humidity, echo=FALSE, message=FALSE, warning=FALSE}
+
+##  ======================== Plot RH values============================
+## Get min RH values
+min.rh <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day) %>%
+  top_n(-1, RELH)
+
+rh.floor <- min.rh %>% distinct(RELH, .keep_all = TRUE)
+## Get max RH values
+max.rh <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day)                    %>%
+  top_n(1, RELH)
+
+rh.ceiling <- max.rh %>% distinct(RELH, .keep_all = TRUE)
+
+RH_vals <- 
+ggplot(madill, aes(TIME, RELH)) +
+  geom_line(color = "green", size = 1) +
+  scale_x_datetime(date_breaks = "1 day", date_labels = "%b %d") +
+  geom_text(data = rh.floor, aes(label = round(RELH,0)), hjust = 1.5, color = "blue") +
+  geom_text(data = rh.ceiling, aes(label = round(RELH,0)), hjust = 1.5, color = "black") +
+  ggtitle(paste0("RH values for past 10 days @ Madill - ", today()))
+  ggsave("plots/rh_vals.pdf", width = 10, height = 8)
+print(RH_vals)
+
+```
+
+```{r Precipitation, echo=FALSE, message=FALSE, warning=FALSE}
+
+##  ======================== Plot PPT values============================
+
+## Get max PPT values
+ppt.rain <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day)                    %>%
+  top_n(1, PPT)
+
+ppt.ceiling <- ppt.rain %>% distinct(PPT, .keep_all = TRUE)
+
+ppt.label <- ppt.ceiling %>% filter(PPT > 0)  ##  Plot only works when it rains
+
+PPT_vals <- 
+ggplot(ppt.rain, aes(TIME, PPT)) +
+  geom_line(color = "blue", size = 1.5)+
+  scale_x_datetime(date_breaks = "1 day", date_labels = "%b %d") +
+  geom_point(data = ppt.ceiling, aes(TIME, PPT)) +
+  # geom_text(data = ppt.label, aes(TIME, PPT,
+  #                                    label = round(PPT,2),
+  #                                    hjust = 1.2,
+  #                                    vjust = -0.8),color = "blue") +
+  ggtitle(paste0("Precipitation for past 10 days @ Madill - ", today()))
+  ggsave("plots/ppt_vals.pdf", width = 10, height = 8)
+print(PPT_vals)
+```
+
+
+```{r Barometric Pressure and Soil Temperatures, echo=FALSE, message=FALSE, warning=FALSE}
+
+## Current Barometric Pressure - last 24 hrs
+one.day <- madill %>% filter(TIME >= (now() - today))
+
+ggplot(one.day, aes(TIME, PRES)) +
+  geom_line(color = "black", size = 0.5) +
+  ggtitle(paste0("Current Barometric Pressure"), max(one.day$TIME))
+
+
+ggplot(madill, aes(TIME, PRES)) +
+  geom_line(color = "black", size = 1.2)
+
+minmaxPressure <- madill %>% select(TIME, PRES) %>%
+  group_by(day(TIME))
+
+```   
+
+```{r Pressure value, echo=FALSE, message=FALSE, warning=FALSE, paged.print=TRUE}
+pressureTail <- tail(minmaxPressure, 50)
+#print(pressureTail)
+pressureTail
+
+```
+
+```{r Soil Temps, echo=FALSE, message=FALSE, warning=FALSE}
+##  Soil temps
+ggplot(madill, aes(TIME, SOIL_5cm)) +
+  geom_point(color = "brown", size = 1.5)
+
+```
+
+```{r Wind, echo=FALSE, message=FALSE, warning=FALSE}
+
+##  ======================== Plot WIND values============================
+
+## Get max WIND values
+max.wspd <- madill %>% mutate(day = format(TIME, "%d")) %>%
+  group_by(day)                    %>%
+  top_n(1, WMAX)
+
+wmax.ceiling <- max.wspd %>% distinct(WSPD, .keep_all = TRUE)
+
+ggplot(madill, aes(TIME, WSPD)) +
+  geom_line(color = "blue4", size = 0.8) +
+  geom_line(aes(y = WMAX), color = "magenta3", size = 0.5) +
+  scale_x_datetime(date_breaks = "1 day", date_labels = "%b %d") +
+  geom_point(data = wmax.ceiling, aes(TIME, WMAX)) +
+  geom_text(data = wmax.ceiling, aes(TIME, WMAX,
+                                     label = WMAX,
+                                     hjust = 1.2,
+                                     vjust = -0.8),color = "blue") +
+  ggtitle(paste0("Wind values for past 10 days @ Madill - ", today()))
+
+##  ##################  Wind Velocity plots  ###################################
+##  Breaks and labels for plots
+brks <- c(0, 45, 90, 135, 180, 225, 270, 315, 360)
+lbls <- c("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+
+##  Extract month and day for facet_wrap
+madill <- mutate(madill, re.day = paste0(month(TIME), "-",  day(TIME)))
+##  Create df specifically for wind data
+wind <- madill %>%   ##  Set up bins, rotate coord system, and summarise
+  filter(is.na(WDIR) == FALSE, is.na(WSPD) == FALSE) %>%
+  mutate(WDIR2 = (WDIR + 360/8/2) %% 360) %>%
+  mutate(dir.bin = cut(WDIR2, breaks = brks, labels = lbls)) %>%
+  group_by(dir.bin, re.day) %>%  ##  Group on re.day for facet_wrap
+  summarise(dir.count = n(), med.spd = median(WSPD), avg = mean(WSPD))
+##  Histogram of wind data
+wind.bar <- ggplot(wind, aes(dir.bin, dir.count, fill = avg)) +
+              geom_histogram(stat = "identity", binwidth = 1) +
+              scale_fill_distiller(palette = "Reds")
+wind.bar
+##  Wind.rose of wind data
+wind.rose <- ggplot(wind, aes(dir.bin, dir.count, fill = avg)) +
+              geom_histogram(stat = "identity", binwidth = 1) +
+              scale_fill_distiller(palette = "Reds") +
+              coord_polar(start = -(22.5 * pi/180)) +
+              theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+              facet_wrap(~ re.day, nrow = 2)
+wind.rose
+```

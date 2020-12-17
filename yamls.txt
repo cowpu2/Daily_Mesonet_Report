@@ -1,0 +1,18 @@
+---
+title: "Madill Mesonet Last 10 Days"
+output:
+  html_document:
+    fig_caption: yes
+    theme: cerulean
+    code_folding: hide
+    df_print: paged
+  pdf_document: default
+  
+---
+
+
+---
+title: "Madill Mesonet Last 10 Days"
+output: 
+  blastula::blastula_email
+---

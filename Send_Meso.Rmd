@@ -1,0 +1,26 @@
+---
+title: "Madill Mesonet - 10 Day"
+author: "CowPuTwo"
+email: cowpu2@gmail.com
+---
+## ============ Sends Mesonet 10-day files as attachments ===============
+##
+## CodeMonkey:  Mike Proctor
+## ======================================================================
+
+```{r, sendmail}
+library(blastula)
+
+
+email <- render_email("email_current.Rmd")
+
+
+email %>%
+  smtp_send(
+    from = setNames(rmarkdown::metadata$email, rmarkdown::metadata$author),
+    to = "azolla.com@gmail.com",
+    subject = rmarkdown::metadata$title,
+    credentials = creds_file("gmail_creds"))  ## Have to set up permissions for R in GMAIL
+
+```
+
